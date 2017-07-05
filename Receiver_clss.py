@@ -1,5 +1,6 @@
 import serial
-
+import Spectrum_amalyzer
+import numpy as np
 
 
 class Receiver:
@@ -45,14 +46,12 @@ class Receiver:
           #  return 1
 
         try:
-            #parcel_str = parcel.decode('utf-8')
-            #print(parcel_str)
+
             elem_list = parcel_str.split("\r\n")
 
             for elem in elem_list:
                 if elem.isdigit():
                     number = int(elem)
-                    print(number)
                     self.signal.append(number)
                     self.number_of_elts += 1
         except UnicodeEncodeError as e:
@@ -64,15 +63,32 @@ class Receiver:
         return 0
 
 
+def write_file(signal_array):
+    file = open("signal.txt",'w')
+    for elem in signal_array:
+        file.write(str(elem))
+        file.write('\n')
+    file.close()
 
+def filter_signal(signal, window_size):
+    filtered_signal = np.convolve(signal, np.ones(window_size,),'valid')
+    np.divide(filtered_signal, window_size, filtered_signal)
+    return filtered_signal
 
-
-str = "laskfaslkf alskfalskfj alkfjaslkfj asfas"
-str_list = str.split(" ")
-for elem in str_list:
-    print(elem)
 
 receiver = Receiver(1)
 receiver.init_port_manually("COM3")
-while 1:
+
+filter_size = 91
+receiver.ser.reset_input_buffer()
+while receiver.number_of_elts < 1024 + filter_size:
     receiver.read_data()
+
+receiver.ser.close()
+clear_signal = filter_signal(receiver.signal, filter_size)
+write_file(clear_signal)
+f1 = open('signal.txt', 'r')
+
+
+Spectrum_amalyzer.process_signal(f1, 'old', 1)
+Spectrum_amalyzer.plt.show()
